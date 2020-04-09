@@ -1,0 +1,10 @@
+.idea/
+notebooks/
+**/*.pyc
+*checkpoint*
+settings.json
+.DS_Store
+logs__old/
+.ipynb_checkpoints/
+env/
+__old/
