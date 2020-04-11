@@ -20,3 +20,4 @@ Orange3>=3.3.5,<=3.7.1;python_version>="3"
 lime
 aif360
 datawig
+freezegun
