@@ -56,7 +56,7 @@ class BinaryClassificationExperiment:
         self.unprivileged_groups = unprivileged_groups
         self.dataset_metadata = dataset_metadata
         self.dataset_name = dataset_name
-        self.log_path = 'logs_sep/'
+        self.log_path = 'logs/'
         self.exec_timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')[:-3]
 
 
