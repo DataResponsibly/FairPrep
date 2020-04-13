@@ -8,5 +8,5 @@ setup(name='fairprep',
       author_email='',
       license='Apache',
       packages=find_packages(exclude=['tests']),
-      python_requires='>=3.5'
+      python_requires='>=3.6'
      )
