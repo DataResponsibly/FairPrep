@@ -72,7 +72,7 @@ class AdultDatasetMaleExperiment(BinaryClassificationExperiment):
 class AdultDatasetWhiteExperiment(BinaryClassificationExperiment):
 
     def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
-                 learner, pre_processor, post_processor):
+                 learners, pre_processors, post_processors):
 
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
@@ -96,8 +96,8 @@ class AdultDatasetWhiteExperiment(BinaryClassificationExperiment):
 
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learner, pre_processor,
-                         post_processor, protected_attribute_names, privileged_classes, privileged_groups,
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                          unprivileged_groups, dataset_metadata, 'adultwhite')
 
     def load_raw_data(self):
@@ -108,7 +108,7 @@ class AdultDatasetWhiteExperiment(BinaryClassificationExperiment):
 class PropublicaDatasetWhiteExperiment(BinaryClassificationExperiment):
 
     def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
-                 learner, pre_processor, post_processor):
+                 learners, pre_processors, post_processors):
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
         label_name = 'two_year_recid'
@@ -131,8 +131,8 @@ class PropublicaDatasetWhiteExperiment(BinaryClassificationExperiment):
 
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learner, pre_processor,
-                         post_processor, protected_attribute_names, privileged_classes, privileged_groups,
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                          unprivileged_groups, dataset_metadata, 'propublicawhite')
 
     def load_raw_data(self):
@@ -159,7 +159,7 @@ class GermanCreditDatasetSexExperiment(BinaryClassificationExperiment):
 
 
     def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
-                 learner, pre_processor, post_processor):
+                 learners, pre_processors, post_processors):
 
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
@@ -185,8 +185,8 @@ class GermanCreditDatasetSexExperiment(BinaryClassificationExperiment):
 
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learner, pre_processor,
-                         post_processor, protected_attribute_names, privileged_classes, privileged_groups,
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                          unprivileged_groups, dataset_metadata, 'germancreditsex')
 
     def load_raw_data(self):
@@ -243,13 +243,13 @@ class GermanCreditDatasetSexExperiment(BinaryClassificationExperiment):
         return df
    
 class RicciRaceExperiment(BinaryClassificationExperiment):
-'''
-Check for fairness based on race (white vs minority i.e Black and Hispanic) while predicting if a candidate will pass i.e obtain total 
-marks greater than or equal to 70.0  
-'''
+    '''
+    Check for fairness based on race (white vs minority i.e Black and Hispanic) while predicting if a candidate will pass i.e obtain total 
+    marks greater than or equal to 70.0  
+    '''
 
     def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
-                 learner, pre_processor, post_processor):
+                 learners, pre_processors, post_processors):
 
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
@@ -273,8 +273,8 @@ marks greater than or equal to 70.0
         
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names,attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learner, pre_processor,
-                         post_processor, protected_attribute_names, privileged_classes, privileged_groups,
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                          unprivileged_groups, dataset_metadata, 'riccirace')
 
     def load_raw_data(self):
@@ -297,11 +297,11 @@ marks greater than or equal to 70.0
         return df
 
 class GiveMeSomeCreditExperiment(BinaryClassificationExperiment):
-'''
-Fairness intervention for the Age attribute (priviledge for age>=25) while predicting if a person will experience 90 days past due delinquency or worse. 
-'''
+    '''
+    Fairness intervention for the Age attribute (priviledge for age>=25) while predicting if a person will experience 90 days past due delinquency or worse. 
+    '''
     def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
-                 learner, pre_processor, post_processor):
+                 learners, pre_processors, post_processors):
 
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
@@ -326,8 +326,8 @@ Fairness intervention for the Age attribute (priviledge for age>=25) while predi
 
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learner, pre_processor,
-                         post_processor, protected_attribute_names, privileged_classes, privileged_groups,
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                          unprivileged_groups, dataset_metadata, 'givecredit')
 
     def load_raw_data(self):

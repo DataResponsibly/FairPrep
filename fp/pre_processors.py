@@ -3,7 +3,7 @@ from aif360.algorithms.preprocessing import LFR as LFR360
 from aif360.algorithms.preprocessing import DisparateImpactRemover
 
 
-class NoPreprocessing:
+class NoPreProcessing:
 
     def pre_process(self, annotated_train_data, privileged_groups, unprivileged_groups):
         return annotated_train_data
