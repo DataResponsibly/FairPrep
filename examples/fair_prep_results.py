@@ -50,7 +50,6 @@ def run_exp(seeds, learners, processors):
             for seed in seeds:    
                 calculate_metrics(seed, learner, pre_processor=processor[0], post_processor=processor[1])
                 learner_acc, learner_di, learner_fnr, learner_fpr = extract_info(learner_acc, learner_di, learner_fnr, learner_fpr)
-                print(learner_acc)
             accuracy.append(learner_acc)
             disp_imp.append(learner_di)
             fnr.append(learner_fnr)
@@ -84,6 +83,6 @@ def plotter(x, y, x_ticks, x_label, main_title):
     fig.savefig('examples/' + main_title + '.png')
     plt.show()
     
-plotter(x=disp_imp, y=accuracy, x_ticks=[0.5, 1, 1.5], x_label='DI', main_title='accuracy vs DI')
-plotter(x=fnr, y=accuracy, x_ticks=[-0.4, 0, 0.4], x_label='FNR', main_title='accuracy vs FNR')
-plotter(x=fpr, y=accuracy, x_ticks=[-0.4, 0, 0.4], x_label='FPR', main_title='accuracy vs FPR')
+plotter(x=disp_imp, y=accuracy, x_ticks=[0.5, 1, 1.5], x_label='DI', main_title='accuracy_vs_di')
+plotter(x=fnr, y=accuracy, x_ticks=[-0.4, 0, 0.4], x_label='FNR', main_title='accuracy_vs_fnr')
+plotter(x=fpr, y=accuracy, x_ticks=[-0.4, 0, 0.4], x_label='FPR', main_title='accuracy_vs_fpr')
