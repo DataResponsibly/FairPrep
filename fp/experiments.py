@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 
+from time import time
 from pathlib import Path
 from datetime import datetime
 from aif360.datasets import StandardDataset
@@ -57,7 +58,8 @@ class BinaryClassificationExperiment:
         self.dataset_metadata = dataset_metadata
         self.dataset_name = dataset_name
         self.log_path = 'logs/'
-        self.exec_timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')[:-3]
+        self.exec_timestamp = self.generate_timestamp()
+
 
 
     # --- Helper Methods Begin ------------------------------------------------
@@ -76,6 +78,10 @@ class BinaryClassificationExperiment:
     def generate_file_path(self, file_name=''):
         dir_name = '{}_{}/'.format(self.exec_timestamp, self.dataset_name)
         return self.log_path + dir_name + file_name
+
+
+    def generate_timestamp(self):
+        return datetime.fromtimestamp(time()).strftime('%Y-%m-%d_%H-%M-%S-%f')[:-3]
 
 
     def load_raw_data(self):
