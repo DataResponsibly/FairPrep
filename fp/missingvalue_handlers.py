@@ -64,7 +64,7 @@ class DataWigSimpleImputer(MissingValueHandler):
 
     def fit(self, df):
         for column in self.columns_to_impute:
-            input_columns = list(set(df.columns) - set(label_column, column))
+            input_columns = list(set(df.columns) - set([self.label_column, column]))
             self.imputers[column] = datawig.SimpleImputer(input_columns=input_columns,
                                                           output_column=column, output_path=self.out).fit(train_df=df)
             
