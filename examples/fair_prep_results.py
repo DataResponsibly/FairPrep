@@ -49,7 +49,7 @@ def run_exp(seeds, learners, processors):
             learner_acc, learner_di, learner_fnr, learner_fpr = [], [], [], []
             for seed in seeds:    
                 calculate_metrics(seed, learner, pre_processor=processor[0], post_processor=processor[1])
-                learner_acc, learner_di, learner_fnr, learner_fpr = extract_info(learner_acc, learner_di, learner_fnr, learner_fpr)
+                extract_info(learner_acc, learner_di, learner_fnr, learner_fpr)
             accuracy.append(learner_acc)
             disp_imp.append(learner_di)
             fnr.append(learner_fnr)

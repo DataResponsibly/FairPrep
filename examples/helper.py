@@ -34,5 +34,4 @@ def extract_info(learner_acc, learner_di, learner_fnr, learner_fpr):
                     shutil.rmtree(path + '/' + sub_folder)
     except:
         pass
-    return learner_acc, learner_di, learner_fnr, learner_fpr
-	
+
