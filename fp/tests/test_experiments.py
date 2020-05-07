@@ -1,6 +1,9 @@
+import os
 import unittest
 import pickle
 from pandas import read_csv
+from sklearn.linear_model import SGDClassifier
+from sklearn.tree import DecisionTreeClassifier
 
 from fp.traindata_samplers import CompleteData
 from fp.missingvalue_handlers import CompleteCaseAnalysis
@@ -10,51 +13,58 @@ from fp.pre_processors import NoPreProcessing
 from fp.post_processors import NoPostProcessing
 from fp.experiments import BinaryClassificationExperiment
 
-
 class TestSuiteExperiments(unittest.TestCase):
     
     @unittest.mock.patch.object(BinaryClassificationExperiment, 'generate_timestamp', unittest.mock.MagicMock(return_value='2020-01-01_00-00-00-000'))
     def setUp(self):
-        # User defined arguments
-        fixed_random_seed = 0xbeef
-        train_data_sampler = CompleteData()
-        missing_value_handler = CompleteCaseAnalysis()
-        numeric_attribute_scaler = NoScaler()
-        learners = [NonTunedLogisticRegression(), NonTunedDecisionTree()]
-        pre_processors = [NoPreProcessing()]
-        post_processors = [NoPostProcessing()]
-        
-        # Fixed arguments for dataset
-        test_set_ratio = 0.2
-        validation_set_ratio = 0.1
-        label_name = 'credit'
-        positive_label = 1
-        numeric_attribute_names = ['month', 'credit_amount', 'residence_since', 'age', 'number_of_credits',
-                                   'people_liable_for']
-        categorical_attribute_names = ['credit_history', 'savings', 'employment']
-        attributes_to_drop_names = ['personal_status', 'status', 'purpose', 'investment_as_income_percentage',
-                                    'other_debtors', 'property', 'installment_plans', 'housing', 'skill_level',
-                                    'telephone', 'foreign_worker']
-        protected_attribute_names = ['sex']
-        privileged_classes = [[1.0]]
-        privileged_groups = [{'sex': 1.0}]
-        unprivileged_groups = [{'sex': 0.0}]
-        dataset_metadata = {'label_maps': [{1.0: 1, 0.0: 0}], 
-                            'protected_attribute_maps': [{1.0: 'male', 0.0: 'female'}]
-                            }
-        dataset_name = 'test_dataset'
-        
-        # Constructor call
-        self.experiment = BinaryClassificationExperiment(fixed_random_seed, test_set_ratio, validation_set_ratio,
-                                                         label_name, positive_label, numeric_attribute_names,
-                                                         categorical_attribute_names, attributes_to_drop_names,
-                                                         train_data_sampler, missing_value_handler, numeric_attribute_scaler,
-                                                         learners, pre_processors, post_processors,
-                                                         protected_attribute_names, privileged_classes, privileged_groups,
-                                                         unprivileged_groups, dataset_metadata, dataset_name)
         self.data = read_csv('fp/tests/resource/input/data.csv')
         self.annotated_train_data = pickle.load(open('fp/tests/resource/input/data_annotated.obj', 'rb'))
-    
+        self.validation_dataset = pickle.load(open('fp/tests/resource/input/data_validation.obj', 'rb'))
+        self.validation_dataset_with_predictions = pickle.load(open('fp/tests/resource/input/data_validation_with_predictions.obj', 'rb'))
+        self.testset_with_predictions = pickle.load(open('fp/tests/resource/input/data_test_with_predictions.obj', 'rb'))
+        class TestBinaryClassificationExperiment(BinaryClassificationExperiment):
+            def __init__(self, data):
+                # User defined arguments
+                fixed_random_seed = 0xbeef
+                train_data_sampler = CompleteData()
+                missing_value_handler = CompleteCaseAnalysis()
+                numeric_attribute_scaler = NoScaler()
+                learners = [NonTunedLogisticRegression(), NonTunedDecisionTree()]
+                pre_processors = [NoPreProcessing()]
+                post_processors = [NoPostProcessing()]
+                
+                # Fixed arguments for dataset
+                test_set_ratio = 0.2
+                validation_set_ratio = 0.1
+                label_name = 'credit'
+                positive_label = 1
+                numeric_attribute_names = ['month', 'credit_amount', 'residence_since', 'age', 'number_of_credits',
+                                           'people_liable_for']
+                categorical_attribute_names = ['credit_history', 'savings', 'employment']
+                attributes_to_drop_names = ['personal_status', 'status', 'purpose', 'investment_as_income_percentage',
+                                            'other_debtors', 'property', 'installment_plans', 'housing', 'skill_level',
+                                            'telephone', 'foreign_worker']
+                protected_attribute_names = ['sex']
+                privileged_classes = [[1.0]]
+                privileged_groups = [{'sex': 1.0}]
+                unprivileged_groups = [{'sex': 0.0}]
+                dataset_metadata = {'label_maps': [{1.0: 1, 0.0: 0}], 
+                                    'protected_attribute_maps': [{1.0: 'male', 0.0: 'female'}]
+                                    }
+                dataset_name = 'test_dataset'
+        
+                # Constructor call
+                super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio,
+                                 label_name, positive_label, numeric_attribute_names,
+                                 categorical_attribute_names, attributes_to_drop_names,
+                                 train_data_sampler, missing_value_handler, numeric_attribute_scaler,
+                                 learners, pre_processors, post_processors,
+                                 protected_attribute_names, privileged_classes, privileged_groups,
+                                 unprivileged_groups, dataset_metadata, dataset_name)
+            def load_raw_data(self):
+                return read_csv('fp/tests/resource/input/data.csv')
+        self.experiment = TestBinaryClassificationExperiment(self.data)
+        
     def test_constructor(self):
         self.assertEqual(self.experiment.fixed_random_seed, 0xbeef)
         self.assertEqual(self.experiment.test_set_ratio, 0.2)
@@ -88,7 +98,7 @@ class TestSuiteExperiments(unittest.TestCase):
         self.assertEqual(self.experiment.dataset_name, 'test_dataset')
         self.assertEqual(self.experiment.log_path, 'logs/')
         self.assertEqual(self.experiment.exec_timestamp, '2020-01-01_00-00-00-000')
-
+        
     def test_unique_file_name(self):
         self.assertEqual(self.experiment.unique_file_name(self.experiment.learners[0], 
                                                          self.experiment.pre_processors[0], 
@@ -103,6 +113,32 @@ class TestSuiteExperiments(unittest.TestCase):
         self.assertEqual(self.experiment.generate_file_path(''), 'logs/2020-01-01_00-00-00-000_test_dataset/')
         self.assertEqual(self.experiment.generate_file_path('test.csv'), 'logs/2020-01-01_00-00-00-000_test_dataset/test.csv')
 
-
+    @unittest.mock.patch.object(BinaryClassificationExperiment, 'generate_timestamp', unittest.mock.MagicMock(return_value='2020-01-01_00-00-00-000'))
+    def test_generate_timestamp(self):
+        self.assertEqual(self.experiment.generate_timestamp(), '2020-01-01_00-00-00-000')
+        
+    def test_learn_classifier(self):
+        result_learner_0 = self.experiment.learn_classifier(self.experiment.learners[0],
+                                                            self.annotated_train_data,
+                                                            self.experiment.fixed_random_seed)
+        self.assertEqual(type(result_learner_0), type(SGDClassifier()))
+        result_learner_1 = self.experiment.learn_classifier(self.experiment.learners[1],
+                                                            self.annotated_train_data,
+                                                            self.experiment.fixed_random_seed)
+        self.assertEqual(type(result_learner_1), type(DecisionTreeClassifier()))
+        
+    def test_preprocess_data(self):
+        result = self.experiment.preprocess_data(self.experiment.pre_processors[0],
+                                                 self.annotated_train_data)
+        self.assertEqual(type(result), type(self.annotated_train_data))
+        self.assertEqual(result, self.annotated_train_data)
+        
+    def test_post_process_predictions(self):
+        result = self.experiment.post_process_predictions(self.experiment.post_processors[0], 
+                                                          self.validation_dataset, 
+                                                          self.validation_dataset_with_predictions, 
+                                                          self.testset_with_predictions)
+        self.assertEqual(type(result), type(self.testset_with_predictions))
+        
 if __name__ == '__main__':
     unittest.main()
