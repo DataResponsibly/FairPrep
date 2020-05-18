@@ -285,14 +285,14 @@ class BinaryClassificationExperiment:
             result. Keeps the test metrics just for the experiment(s) with the
             optimal result.
         """
-        
-        results_dir = os.listdir(Path(self.generate_file_path()))
+        results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
+        results_dir = os.listdir(Path(results_dir_name))
         accuracies = dict()
         max_accuracy = 0
 
         # Fetching the accuracy from the row('val', 'None', 'accuracy') of all the experiment results
         for result_filename in results_dir:
-            file_path = self.generate_file_path(result_filename)
+            file_path = os.path.join(results_dir_name, result_filename)
             result_df = pd.read_csv(file_path)
             result_df.fillna(value='', inplace=True)
             accuracy = (result_df.loc[(result_df['Split'] == 'val') & 
@@ -313,7 +313,7 @@ class BinaryClassificationExperiment:
 
         # Removing the test results from the non optimal experiment results      
         for file_name in non_optimal_filenames:
-            file_path = self.generate_file_path(file_name)
+            file_path = os.path.join(results_dir_name, result_filename)
             result_df = pd.read_csv(file_path)
             result_df = result_df[(result_df['Split'] != 'test')]
             os.remove(file_path)
@@ -321,9 +321,9 @@ class BinaryClassificationExperiment:
 
         # Renaming the optimal experiment results file (or files if tie) 
         for file_name in optimal_filenames:
-            file_path = self.generate_file_path(file_name)
-            optimal_file_name = file_name[:-4] + '__OPTIMAL.csv'
-            optimal_file_path = self.generate_file_path(optimal_file_name)
+            file_path = os.path.join(results_dir_name, file_name)
+            optimal_file_name = '{}{}'.format(file_name[:-4], '__OPTIMAL.csv')
+            optimal_file_path = os.path.join(results_dir_name, optimal_file_name)
             os.rename(file_path, optimal_file_path)
 
 
