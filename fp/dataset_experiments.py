@@ -5,7 +5,8 @@ import numpy as np
 
 class AdultDatasetWhiteMaleExperiment(BinaryClassificationExperiment):
 
-    def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler):
+    def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
+                 learners, pre_processors, post_processors):
 
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
@@ -29,8 +30,9 @@ class AdultDatasetWhiteMaleExperiment(BinaryClassificationExperiment):
 
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, protected_attribute_names,
-                         privileged_classes, privileged_groups, unprivileged_groups, dataset_metadata, 'adultwhitemale')
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
+                         unprivileged_groups, dataset_metadata, 'adultwhitemale')
 
     def load_raw_data(self):
         return pd.read_csv('datasets/raw/adult.csv', na_values='?', sep=',')
@@ -38,7 +40,8 @@ class AdultDatasetWhiteMaleExperiment(BinaryClassificationExperiment):
 
 class AdultDatasetMaleExperiment(BinaryClassificationExperiment):
 
-    def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler):
+    def __init__(self, fixed_random_seed, train_data_sampler, missing_value_handler, numeric_attribute_scaler,
+                 learners, pre_processors, post_processors):
 
         test_set_ratio = 0.2
         validation_set_ratio = 0.1
@@ -62,8 +65,9 @@ class AdultDatasetMaleExperiment(BinaryClassificationExperiment):
 
         super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                          numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
-                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, protected_attribute_names,
-                         privileged_classes, privileged_groups, unprivileged_groups, dataset_metadata, 'adultmale')
+                         train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners, pre_processors,
+                         post_processors, protected_attribute_names, privileged_classes, privileged_groups,
+                         unprivileged_groups, dataset_metadata, 'adultmale')
 
     def load_raw_data(self):
         return pd.read_csv('datasets/raw/adult.csv', na_values='?', sep=',')

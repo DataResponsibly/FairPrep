@@ -178,14 +178,14 @@ class BinaryClassificationExperiment:
             for metric_name in privileged_metric_names:
                 metric_function = getattr(metric, metric_name)
                 metric_value = metric_function(privileged=maybe_privileged)
-                results_file.write('{},{},{},{}\n'.format(prefix, maybe_privileged, metric_name, metric_value))
+                results_file.append([prefix, maybe_privileged, metric_name, metric_value])
 
         if hasattr(model, 'predict_proba'):
             auc = roc_auc_score(annotated_data.labels, model.predict_proba(annotated_data.features)[:, 1])
         else:
             auc = None
 
-        results_file.write('{},,roc_auc,{}\n'.format(prefix, auc))
+        results_file.append([prefix, '', 'roc_auc', auc])
 
         global_metric_names = ['true_positive_rate_difference', 'false_positive_rate_difference',
                                'false_negative_rate_difference', 'false_omission_rate_difference',
@@ -202,7 +202,9 @@ class BinaryClassificationExperiment:
         for metric_name in global_metric_names:
             metric_function = getattr(metric, metric_name)
             metric_value = metric_function()
-            results_file.write('{},,{},{}\n'.format(prefix, metric_name, metric_value))
+            results_file.append([prefix, '', metric_name, metric_value])
+
+        return results_file
 
 
     # --- Helper Methods End --------------------------------------------------
@@ -264,15 +266,18 @@ class BinaryClassificationExperiment:
         results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
         if not os.path.exists(results_dir_name):
             os.makedirs(results_dir_name)
-
-        with open(results_file_path, 'w') as results_file:
-
-            self.log_metrics(results_file, model, adjusted_annotated_validation_data,
-                             adjusted_annotated_validation_data_with_predictions, 'val')
-            self.log_metrics(results_file, model, adjusted_annotated_train_data,
-                             adjusted_annotated_train_data_with_predictions, 'train')
-            self.log_metrics(results_file, model, adjusted_annotated_test_data,
-                             adjusted_annotated_test_data_with_predictions, 'test')
+        
+        results_file = []
+        
+        results_file = self.log_metrics(results_file, model, adjusted_annotated_validation_data,
+                                        adjusted_annotated_validation_data_with_predictions, 'val')
+        results_file = self.log_metrics(results_file, model, adjusted_annotated_train_data,
+                                        adjusted_annotated_train_data_with_predictions, 'train')
+        results_file = self.log_metrics(results_file, model, adjusted_annotated_test_data, 
+                                        adjusted_annotated_test_data_with_predictions, 'test')
+        
+        results_file = pd.DataFrame(results_file, columns=['Split', 'PrivilegedStatus', 'MetricName', 'MetricValue'])
+        results_file.to_csv(results_file_path, index=False)
 
 
     def filter_optimal_results(self):
@@ -288,10 +293,11 @@ class BinaryClassificationExperiment:
         # Fetching the accuracy from the row('val', 'None', 'accuracy') of all the experiment results
         for result_filename in results_dir:
             file_path = self.generate_file_path(result_filename)
-            result_df = pd.read_csv(file_path, header=None, names=['split', 'maybe_privileged', 'metric_name', 'metric_value'])
-            accuracy = (result_df.loc[(result_df['split'] == 'val') & 
-                                      (result_df['maybe_privileged'] == 'None') & 
-                                      (result_df['metric_name'] == 'accuracy'), 'metric_value'].values[0])
+            result_df = pd.read_csv(file_path)
+            result_df.fillna(value='', inplace=True)
+            accuracy = (result_df.loc[(result_df['Split'] == 'val') & 
+                                      (result_df['PrivilegedStatus'] == '') & 
+                                      (result_df['MetricName'] == 'accuracy'), 'MetricValue'].values[0])
             accuracies[result_filename] = accuracy
             if accuracy > max_accuracy:
                 max_accuracy = accuracy
@@ -308,8 +314,8 @@ class BinaryClassificationExperiment:
         # Removing the test results from the non optimal experiment results      
         for file_name in non_optimal_filenames:
             file_path = self.generate_file_path(file_name)
-            result_df = pd.read_csv(file_path, header=None, names=['split', 'maybe_privileged', 'metric_name', 'metric_value'])
-            result_df = result_df[(result_df['split'] != 'test')]
+            result_df = pd.read_csv(file_path)
+            result_df = result_df[(result_df['Split'] != 'test')]
             os.remove(file_path)
             result_df.to_csv(file_path, index=False, header=False)
 
