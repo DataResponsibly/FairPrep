@@ -10,7 +10,6 @@ from aif360.metrics import ClassificationMetric
 from sklearn.base import clone
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
-from fp.utils import filter_optimal_results_skyline_order, filter_optimal_results_skyline_formula
 
 
 class BinaryClassificationExperiment:
@@ -36,8 +35,7 @@ class BinaryClassificationExperiment:
                  privileged_groups,
                  unprivileged_groups,
                  dataset_metadata,
-                 dataset_name,
-                 optimal_validation_strategy):
+                 dataset_name):
 
         self.fixed_random_seed = fixed_random_seed
         self.test_set_ratio = test_set_ratio
@@ -61,21 +59,20 @@ class BinaryClassificationExperiment:
         self.dataset_name = dataset_name
         self.log_path = 'logs/'
         self.exec_timestamp = self.generate_timestamp()
-        self.optimal_validation_strategy = optimal_validation_strategy
 
 
 
     # --- Helper Methods Begin ------------------------------------------------
 
 
-    def unique_file_name(self, pre_processor, post_processor, learner):
-        return '{0}__{1}__{2}__{3}__{4}__{5}__{6}'.format(self.dataset_name,
-                                                   pre_processor.name(),
-                                                   post_processor.name(),
+    def unique_file_name(self, learner, pre_processor, post_processor):
+        return '{}__{}__{}__{}__{}__{}__{}'.format(self.dataset_name,
                                                    learner.name(),
                                                    self.missing_value_handler.name(),
                                                    self.train_data_sampler.name(),
-                                                   self.numeric_attribute_scaler.name())
+                                                   self.numeric_attribute_scaler.name(),
+                                                   pre_processor.name(),
+                                                   post_processor.name())
 
 
     def generate_file_path(self, file_name=''):
@@ -134,6 +131,7 @@ class BinaryClassificationExperiment:
 
         feature_names_in_train_but_not_in_current = set(train_feature_names).difference(
             set(current_feature_names))
+
         print("Injecting zero columns for features not present", feature_names_in_train_but_not_in_current)
 
         validation_data_df, _ = adjusted_annotated_data.convert_to_dataframe()
@@ -149,12 +147,14 @@ class BinaryClassificationExperiment:
         if learner.needs_annotated_data_for_prediction():
             adjusted_annotated__data_with_predictions = model.predict(adjusted_annotated_data)
         else:
-            adjusted_annotated__data_with_predictions.labels = model.predict(adjusted_annotated_data.features).reshape(-1,1)
+            adjusted_annotated__data_with_predictions.labels = model.predict(adjusted_annotated_data.features)
+
             try:
                 class_probs = model.predict_proba(adjusted_annotated_data.features)
                 adjusted_annotated__data_with_predictions.scores = class_probs[:, 0]
             except AttributeError:
                 print("WARNING: MODEL CANNOT ASSIGN CLASS PROBABILITIES")
+
         return adjusted_annotated_data, adjusted_annotated__data_with_predictions
 
 
@@ -235,11 +235,10 @@ class BinaryClassificationExperiment:
         post_processor : fairprep pre-processor abstraction from 
             aif360.algorithms.post_processors
         """
-
-        adjusted_annotated_train_data = self.preprocess_data(pre_processor, annotated_train_data)
-
-        model = self.learn_classifier(learner, adjusted_annotated_train_data, self.fixed_random_seed)
         
+        adjusted_annotated_train_data = self.preprocess_data(pre_processor, annotated_train_data)
+        model = self.learn_classifier(learner, adjusted_annotated_train_data, self.fixed_random_seed)
+
         adjusted_annotated_train_data_with_predictions = adjusted_annotated_train_data.copy()
 
         if learner.needs_annotated_data_for_prediction():
@@ -261,12 +260,13 @@ class BinaryClassificationExperiment:
             adjusted_annotated_test_data_with_predictions)
 
         results_file_name = '../{}{}-{}.csv'.format(
-            self.generate_file_path(), self.unique_file_name(pre_processor, post_processor, learner), self.fixed_random_seed)
+            self.generate_file_path(), self.unique_file_name(pre_processor, learner, post_processor), self.fixed_random_seed)
         results_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), results_file_name)
         
         results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
         if not os.path.exists(results_dir_name):
             os.makedirs(results_dir_name)
+        
         results_file = []
         
         results_file = self.log_metrics(results_file, model, adjusted_annotated_validation_data,
@@ -280,70 +280,45 @@ class BinaryClassificationExperiment:
         results_file.to_csv(results_file_path, index=False)
 
 
-
     def filter_optimal_results(self):
         """Identifies the experiment(s) with the highest accuracy as optimal 
             result. Keeps the test metrics just for the experiment(s) with the
             optimal result.
         """
-
         results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
         results_dir = os.listdir(Path(results_dir_name))
+        accuracies = dict()
+        max_accuracy = 0
 
-        ##### SKYLINE FORMULA IMPLEMENTATION
-
-        privileged_metric_names = ['num_true_positives', 'num_false_positives', 'num_false_negatives',
-                                   'num_true_negatives', 'num_generalized_true_positives',
-                                   'num_generalized_false_positives', 'num_generalized_false_negatives',
-                                   'num_generalized_true_negatives', 'true_positive_rate', 'false_positive_rate',
-                                   'false_negative_rate', 'true_negative_rate', 'generalized_true_positive_rate',
-                                   'generalized_false_positive_rate', 'generalized_false_negative_rate',
-                                   'generalized_true_negative_rate', 'positive_predictive_value',
-                                   'false_discovery_rate', 'false_omission_rate', 'negative_predictive_value',
-                                   'accuracy', 'error_rate', 'num_pred_positives', 'num_pred_negatives',
-                                   'selection_rate']
-         
-        dictionary = {}
-        filenames = list()
+        # Fetching the accuracy from the row('val', 'None', 'accuracy') of all the experiment results
         for result_filename in results_dir:
             file_path = os.path.join(results_dir_name, result_filename)
             result_df = pd.read_csv(file_path)
             result_df.fillna(value='', inplace=True)
-            for privileged_metric in privileged_metric_names:
-                if privileged_metric not in dictionary:
-                    dictionary[privileged_metric] = list()
-                p_metric = (result_df.loc[(result_df['Split'] == 'val') & 
+            accuracy = (result_df.loc[(result_df['Split'] == 'val') & 
                                       (result_df['PrivilegedStatus'] == '') & 
-                                      (result_df['MetricName'] == privileged_metric), 'MetricValue'].values[0])
-                dictionary[privileged_metric].append(p_metric)
-            filenames.append(result_filename)
+                                      (result_df['MetricName'] == 'accuracy'), 'MetricValue'].values[0])
+            accuracies[result_filename] = accuracy
+            if accuracy > max_accuracy:
+                max_accuracy = accuracy
 
-        privileged_metric_values = pd.DataFrame(dictionary)
-        privileged_metric_values['filenames'] = filenames
-
-        if isinstance(self.optimal_validation_strategy, dict):
-            skyline_result = filter_optimal_results_skyline_formula(privileged_metric_values, self.optimal_validation_strategy)
-        else:
-            skyline_result = filter_optimal_results_skyline_order(privileged_metric_values, self.optimal_validation_strategy)
-
+        # List of non optimal and optimal filenames and accuracy
         non_optimal_filenames = list()
         optimal_filenames = list()
-        filenames_list = privileged_metric_values['filenames'].tolist()
-        for file_name in filenames_list:
-            if file_name == skyline_result[-1]:
-                optimal_filenames.append(file_name)
+        for filename, accuracy in accuracies.items():
+            if accuracy != max_accuracy:
+                non_optimal_filenames.append(filename)
             else:
-                non_optimal_filenames.append(file_name)
+                optimal_filenames.append(filename)
 
         # Removing the test results from the non optimal experiment results      
-        '''
         for file_name in non_optimal_filenames:
-            file_path = os.path.join(results_dir_name, file_name)
+            file_path = os.path.join(results_dir_name, result_filename)
             result_df = pd.read_csv(file_path)
             result_df = result_df[(result_df['Split'] != 'test')]
             os.remove(file_path)
             result_df.to_csv(file_path, index=False, header=False)
-        '''
+
         # Renaming the optimal experiment results file (or files if tie) 
         for file_name in optimal_filenames:
             file_path = os.path.join(results_dir_name, file_name)
@@ -366,7 +341,6 @@ class BinaryClassificationExperiment:
                                                                     self.validation_set_ratio,
                                                                     random_state=self.fixed_random_seed)
 
-        #Just returns complete data
         train_data = self.train_data_sampler.sample(all_train_data)
 
         second_split_ratio = self.test_set_ratio / (self.test_set_ratio + self.validation_set_ratio)
@@ -374,8 +348,6 @@ class BinaryClassificationExperiment:
         validation_data, test_data = train_test_split(test_and_validation_data, test_size=second_split_ratio,
                                                       random_state=self.fixed_random_seed)
 
-
-        #fit just passes and hadle_missing does drop_na operation
         self.missing_value_handler.fit(train_data)
         filtered_train_data = self.missing_value_handler.handle_missing(train_data)
 
@@ -402,8 +374,10 @@ class BinaryClassificationExperiment:
             features_to_drop=self.attributes_to_drop_names,
             metadata=self.dataset_metadata
         )
+
         for pre_processor in self.pre_processors:
             for learner in self.learners:
                 for post_processor in self.post_processors:
-                    self.run_single_exp(annotated_train_data, validation_data, test_data, scalers, pre_processor, learner, post_processor)
+                    self.run_single_exp(annotated_train_data, validation_data, test_data, scalers, 
+                                        pre_processor, learner, post_processor)
         self.filter_optimal_results()
