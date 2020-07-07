@@ -10,12 +10,25 @@ from aif360.metrics import ClassificationMetric
 from sklearn.base import clone
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
-from fp.utils import filter_optimal_results_skyline_order, filter_optimal_results_skyline_formula
 
+
+'''
+DEFAULT SETTING OF METRICS IN TERMS OF ITS ORDER
+'''
+
+# TODO: read the literature to distinguish TODOS into existing categories.
+TODOS = ['generalized_entropy_index', 'between_all_groups_generalized_entropy_index', 'between_group_generalized_entropy_index', 'theil_index', 'coefficient_of_variation',
+         'between_group_theil_index', 'between_group_coefficient_of_variation', 'between_all_groups_theil_index', 'between_all_groups_coefficient_of_variation']
+
+LOWER_VALUE_IS_BETTER = ['num_false_positives', 'num_false_negatives', 'num_generalized_false_positives', 'num_generalized_false_negatives', 'false_negative_rate',
+                         'generalized_false_positive_rate', 'generalized_false_negative_rate', 'false_discovery_rate', 'false_omission_rate', 'error_rate',
+                         'true_positive_rate_difference', 'false_positive_rate_difference', 'false_negative_rate_difference', 'false_omission_rate_difference', 'false_discovery_rate_difference',
+                         'average_odds_difference', 'average_abs_odds_difference', 'error_rate_difference', 'statistical_parity_difference'
+                         ]
+ONE_IS_BEST = ['false_positive_rate_ratio', 'false_negative_rate_ratio', 'false_omission_rate_ratio', 'false_discovery_rate_ratio',
+               'error_rate_ratio', 'disparate_impact']
 
 class BinaryClassificationExperiment:
-
-
     def __init__(self,
                  fixed_random_seed,
                  test_set_ratio,
@@ -63,48 +76,39 @@ class BinaryClassificationExperiment:
         self.exec_timestamp = self.generate_timestamp()
         self.optimal_validation_strategy = optimal_validation_strategy
 
-
-
     # --- Helper Methods Begin ------------------------------------------------
 
 
-    def unique_file_name(self, pre_processor, post_processor, learner):
-        return '{0}__{1}__{2}__{3}__{4}__{5}__{6}'.format(self.dataset_name,
-                                                   pre_processor.name(),
-                                                   post_processor.name(),
+    def unique_file_name(self, learner, pre_processor, post_processor):
+        return '{}__{}__{}__{}__{}__{}__{}'.format(self.dataset_name,
                                                    learner.name(),
                                                    self.missing_value_handler.name(),
                                                    self.train_data_sampler.name(),
-                                                   self.numeric_attribute_scaler.name())
-
+                                                   self.numeric_attribute_scaler.name(),
+                                                   pre_processor.name(),
+                                                   post_processor.name())
 
     def generate_file_path(self, file_name=''):
         dir_name = '{}_{}/'.format(self.exec_timestamp, self.dataset_name)
         return self.log_path + dir_name + file_name
 
-
     def generate_timestamp(self):
         return datetime.fromtimestamp(time()).strftime('%Y-%m-%d_%H-%M-%S-%f')[:-3]
-
 
     def load_raw_data(self):
         raise NotImplementedError
 
-
     def learn_classifier(self, learner, annotated_train_data, fixed_random_seed):
         return learner.fit_model(annotated_train_data, fixed_random_seed)
-
 
     def preprocess_data(self, pre_processor, annotated_dataset):
         return pre_processor.pre_process(annotated_dataset, self.privileged_groups, self.unprivileged_groups)
 
-
     def post_process_predictions(self, post_processor, validation_dataset, validation_dataset_with_predictions,
                                  testset_with_predictions):
         return post_processor.post_process(validation_dataset, validation_dataset_with_predictions,
-                                                testset_with_predictions, self.fixed_random_seed,
-                                                self.privileged_groups, self.unprivileged_groups)
-
+                                           testset_with_predictions, self.fixed_random_seed,
+                                           self.privileged_groups, self.unprivileged_groups)
 
     def apply_model(self, data, scalers, adjusted_annotated_train_data, pre_processor, learner, model):
         filtered_data = self.missing_value_handler.handle_missing(data)
@@ -134,6 +138,7 @@ class BinaryClassificationExperiment:
 
         feature_names_in_train_but_not_in_current = set(train_feature_names).difference(
             set(current_feature_names))
+
         print("Injecting zero columns for features not present", feature_names_in_train_but_not_in_current)
 
         validation_data_df, _ = adjusted_annotated_data.convert_to_dataframe()
@@ -149,14 +154,15 @@ class BinaryClassificationExperiment:
         if learner.needs_annotated_data_for_prediction():
             adjusted_annotated__data_with_predictions = model.predict(adjusted_annotated_data)
         else:
-            adjusted_annotated__data_with_predictions.labels = model.predict(adjusted_annotated_data.features).reshape(-1,1)
+            adjusted_annotated__data_with_predictions.labels = model.predict(adjusted_annotated_data.features)
+
             try:
                 class_probs = model.predict_proba(adjusted_annotated_data.features)
                 adjusted_annotated__data_with_predictions.scores = class_probs[:, 0]
             except AttributeError:
                 print("WARNING: MODEL CANNOT ASSIGN CLASS PROBABILITIES")
-        return adjusted_annotated_data, adjusted_annotated__data_with_predictions
 
+        return adjusted_annotated_data, adjusted_annotated__data_with_predictions
 
     def log_metrics(self, results_file, model, annotated_data, annotated_data_with_predictions, prefix):
         metric = ClassificationMetric(annotated_data, annotated_data_with_predictions,
@@ -206,18 +212,17 @@ class BinaryClassificationExperiment:
 
         return results_file
 
-
     # --- Helper Methods End --------------------------------------------------
 
-    
+
     def run_single_exp(self, annotated_train_data, validation_data, test_data, scalers, pre_processor,
                        learner, post_processor):
-        """Executes a single instance of experiment out of all the possible 
+        """Executes a single instance of experiment out of all the possible
         experiments from the given parameters.
-        
+
         Parameters:
         -----------
-        annotated_train_data : annotated aif360.datasets.StandardDataset of 
+        annotated_train_data : annotated aif360.datasets.StandardDataset of
             train data
 
         validation_data : pandas dataframe of validation data
@@ -226,20 +231,19 @@ class BinaryClassificationExperiment:
 
         scalers : dictionary with (key='feature name', value='type of scaler')
 
-        pre_processor : fairprep pre-processor abstraction from 
+        pre_processor : fairprep pre-processor abstraction from
             aif360.algorithms.pre_processors
-    
-        learner : fairprep learner abstraction from sci-kit learn or 
+
+        learner : fairprep learner abstraction from sci-kit learn or
             aif360.algorithms.inprocessing
-    
-        post_processor : fairprep pre-processor abstraction from 
+
+        post_processor : fairprep pre-processor abstraction from
             aif360.algorithms.post_processors
         """
 
         adjusted_annotated_train_data = self.preprocess_data(pre_processor, annotated_train_data)
-
         model = self.learn_classifier(learner, adjusted_annotated_train_data, self.fixed_random_seed)
-        
+
         adjusted_annotated_train_data_with_predictions = adjusted_annotated_train_data.copy()
 
         if learner.needs_annotated_data_for_prediction():
@@ -256,95 +260,73 @@ class BinaryClassificationExperiment:
             self.apply_model(test_data, scalers, adjusted_annotated_train_data, pre_processor, learner, model)
 
         adjusted_annotated_test_data_with_predictions = self.post_process_predictions(post_processor,
-            adjusted_annotated_validation_data,
-            adjusted_annotated_validation_data_with_predictions,
-            adjusted_annotated_test_data_with_predictions)
+                                                                                      adjusted_annotated_validation_data,
+                                                                                      adjusted_annotated_validation_data_with_predictions,
+                                                                                      adjusted_annotated_test_data_with_predictions)
 
         results_file_name = '../{}{}-{}.csv'.format(
-            self.generate_file_path(), self.unique_file_name(pre_processor, post_processor, learner), self.fixed_random_seed)
+            self.generate_file_path(), self.unique_file_name(pre_processor, learner, post_processor),
+            self.fixed_random_seed)
         results_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), results_file_name)
-        
-        results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
+
+        results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                        '../{}'.format(self.generate_file_path()))
         if not os.path.exists(results_dir_name):
             os.makedirs(results_dir_name)
+
         results_file = []
-        
+
         results_file = self.log_metrics(results_file, model, adjusted_annotated_validation_data,
                                         adjusted_annotated_validation_data_with_predictions, 'val')
         results_file = self.log_metrics(results_file, model, adjusted_annotated_train_data,
                                         adjusted_annotated_train_data_with_predictions, 'train')
-        results_file = self.log_metrics(results_file, model, adjusted_annotated_test_data, 
+        results_file = self.log_metrics(results_file, model, adjusted_annotated_test_data,
                                         adjusted_annotated_test_data_with_predictions, 'test')
-        
+
         results_file = pd.DataFrame(results_file, columns=['Split', 'PrivilegedStatus', 'MetricName', 'MetricValue'])
         results_file.to_csv(results_file_path, index=False)
 
-
-
     def filter_optimal_results(self):
-        """Identifies the experiment(s) with the highest accuracy as optimal 
+        """Identifies the experiment(s) with the highest accuracy as optimal
             result. Keeps the test metrics just for the experiment(s) with the
             optimal result.
         """
-
-        results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
+        results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                        '../{}'.format(self.generate_file_path()))
         results_dir = os.listdir(Path(results_dir_name))
+        accuracies = dict()
+        max_accuracy = 0
 
-        ##### SKYLINE FORMULA IMPLEMENTATION
-
-        privileged_metric_names = ['num_true_positives', 'num_false_positives', 'num_false_negatives',
-                                   'num_true_negatives', 'num_generalized_true_positives',
-                                   'num_generalized_false_positives', 'num_generalized_false_negatives',
-                                   'num_generalized_true_negatives', 'true_positive_rate', 'false_positive_rate',
-                                   'false_negative_rate', 'true_negative_rate', 'generalized_true_positive_rate',
-                                   'generalized_false_positive_rate', 'generalized_false_negative_rate',
-                                   'generalized_true_negative_rate', 'positive_predictive_value',
-                                   'false_discovery_rate', 'false_omission_rate', 'negative_predictive_value',
-                                   'accuracy', 'error_rate', 'num_pred_positives', 'num_pred_negatives',
-                                   'selection_rate']
-         
-        dictionary = {}
-        filenames = list()
+        # Fetching the accuracy from the row('val', 'None', 'accuracy') of all the experiment results
         for result_filename in results_dir:
             file_path = os.path.join(results_dir_name, result_filename)
             result_df = pd.read_csv(file_path)
             result_df.fillna(value='', inplace=True)
-            for privileged_metric in privileged_metric_names:
-                if privileged_metric not in dictionary:
-                    dictionary[privileged_metric] = list()
-                p_metric = (result_df.loc[(result_df['Split'] == 'val') & 
-                                      (result_df['PrivilegedStatus'] == '') & 
-                                      (result_df['MetricName'] == privileged_metric), 'MetricValue'].values[0])
-                dictionary[privileged_metric].append(p_metric)
-            filenames.append(result_filename)
+            accuracy = (result_df.loc[(result_df['Split'] == 'val') &
+                                      (result_df['PrivilegedStatus'] == '') &
+                                      (result_df['MetricName'] == 'accuracy'), 'MetricValue'].values[0])
+            accuracies[result_filename] = accuracy
+            if accuracy > max_accuracy:
+                max_accuracy = accuracy
 
-        privileged_metric_values = pd.DataFrame(dictionary)
-        privileged_metric_values['filenames'] = filenames
-
-        if isinstance(self.optimal_validation_strategy, dict):
-            skyline_result = filter_optimal_results_skyline_formula(privileged_metric_values, self.optimal_validation_strategy)
-        else:
-            skyline_result = filter_optimal_results_skyline_order(privileged_metric_values, self.optimal_validation_strategy)
-
+        # List of non optimal and optimal filenames and accuracy
         non_optimal_filenames = list()
         optimal_filenames = list()
-        filenames_list = privileged_metric_values['filenames'].tolist()
-        for file_name in filenames_list:
-            if file_name == skyline_result[-1]:
-                optimal_filenames.append(file_name)
+        for filename, accuracy in accuracies.items():
+            if accuracy != max_accuracy:
+                non_optimal_filenames.append(filename)
             else:
-                non_optimal_filenames.append(file_name)
+                optimal_filenames.append(filename)
 
-        # Removing the test results from the non optimal experiment results      
-        '''
+        # Removing the test results from the non optimal experiment results
         for file_name in non_optimal_filenames:
             file_path = os.path.join(results_dir_name, file_name)
             result_df = pd.read_csv(file_path)
             result_df = result_df[(result_df['Split'] != 'test')]
             os.remove(file_path)
             result_df.to_csv(file_path, index=False, header=False)
-        '''
-        # Renaming the optimal experiment results file (or files if tie) 
+
+        # Renaming the optimal experiment results file (or files if tie)
         for file_name in optimal_filenames:
             file_path = os.path.join(results_dir_name, file_name)
             optimal_file_name = '{}{}'.format(file_name[:-4], '__OPTIMAL.csv')
@@ -352,10 +334,98 @@ class BinaryClassificationExperiment:
             os.rename(file_path, optimal_file_path)
 
 
+    def filter_optimal_validation_results_on_skyline_input(self):
+        """  Identifies the experiment(s) with the highest value as optimal result based on the order specified in the inputs.
+            Store the values of all the candidates in a CSV file with name "skyline_options.csv" in the current result dir.
+            Keeps the test metrics just for the experiment(s) with the optimal result, i.e., deleting all the non-optimal results.
+        """
+        results_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../{}'.format(self.generate_file_path()))
+        results_dir = os.listdir(Path(results_dir_name))
+
+        if isinstance(self.optimal_validation_strategy, dict):  # input is a formula stored in a dict
+            metrics = list(self.optimal_validation_strategy.keys())
+        else:  # input is an order stored in a list
+            metrics = self.optimal_validation_strategy
+
+        skyline_options = pd.DataFrame(columns=['setting', 'data'] + metrics)
+
+        # Fetching the values of the input metrics on the validation set of all the experiment settings (e.g. all combinations of learners and processors)
+        for result_filename in results_dir:
+            file_path = os.path.join(results_dir_name, result_filename)
+            result_df = pd.read_csv(file_path)
+            result_df.fillna(value='', inplace=True)
+
+            for di in ['val', 'test']:
+                skyline_row = [result_filename.replace('.csv',''), di]
+                for mi in metrics:
+                    mi_value = (result_df.loc[(result_df['Split'] == di) &
+                                              (result_df['PrivilegedStatus'] == '') &
+                                              (result_df['MetricName'] == mi), 'MetricValue'].values[0])
+                    # Reorder the values of metrics if their lower value represents more fair outcome
+                    if mi in LOWER_VALUE_IS_BETTER:
+                        skyline_row.append(-mi_value)
+                    # Transform the values of metrics if 1 represent the fair outcome
+                    elif mi in ONE_IS_BEST:
+                        if mi > 1:
+                            skyline_row.append(1-mi_value)
+                        else:
+                            skyline_row.append(mi_value-1)
+                    else:
+                        skyline_row.append(mi_value)
+                skyline_options.loc[skyline_options.shape[0]] = skyline_row
+
+        # Normalize (min-max) the values of metrics before computing the skyline order
+        for mi in metrics:
+            if abs(skyline_options[mi].max()) > 1: # for metrics that have absolute values greater than 1
+                skyline_options[mi] = (skyline_options[mi] - skyline_options[mi].min()) / (skyline_options[mi].max() - skyline_options[mi].min())
+
+        # Compute the value based on skyline inputs
+        if isinstance(self.optimal_validation_strategy, dict):
+            skyline_options['skyline'] = skyline_options.apply(lambda x: sum([x[coli] * weighti for coli, weighti in self.optimal_validation_strategy.items()]), axis=1)
+        else:
+            # Use exaggerated weights to account ties in the skyline order
+            skyline_order_weights = [10**i for i in range(len(self.optimal_validation_strategy)-1, -1, -1)]
+            skyline_options['skyline'] = skyline_options.apply(lambda x: sum([x[ci] * weighti for ci, weighti in zip(metrics, skyline_order_weights)]), axis=1)
+
+
+
+        # Filter out the optimal setting w.r.t combinations of learners and processors on validation set, i.e., optimal setting is the one with the highest value on validation set
+        # If ties appear in the skyline ranked files, all the tied settings are returned as optimal
+        skyline_ranked_files = skyline_options[skyline_options['data']=='val'].sort_values('skyline', ascending=False)
+
+        # List of non optimal and optimal filenames to account for ties in the skyline order
+        non_optimal_filenames = list()
+        optimal_filenames = list()
+        max_skyline = max(skyline_ranked_files['skyline'])
+        for idx, row in skyline_ranked_files.iterrows():
+            if row['skyline'] != max_skyline:
+                non_optimal_filenames.append(row['setting'])
+            else:
+                optimal_filenames.append(row['setting'])
+
+        # Add a column to represent the optimal setting for interpretation and visualization only
+        skyline_options['optimal'] = skyline_options.apply(lambda x: int(x['setting'] in optimal_filenames), axis=1)
+        skyline_options.to_csv(os.path.join(results_dir_name, 'skyline_options.csv'), index=False)
+
+        # Removing the test results from the non optimal experiment results
+        for file_name in non_optimal_filenames:
+            file_path = os.path.join(results_dir_name, file_name+".csv")
+            result_df = pd.read_csv(file_path)
+            result_df = result_df[(result_df['Split'] != 'test')]
+            os.remove(file_path)
+            result_df.to_csv(file_path, index=False, header=False)
+
+        # Renaming the optimal experiment results file (or files if tie)
+        for file_name in optimal_filenames:
+            file_path = os.path.join(results_dir_name, file_name+".csv")
+            optimal_file_name = '{}{}'.format(file_name, '__OPTIMAL.csv')
+            optimal_file_path = os.path.join(results_dir_name, optimal_file_name)
+            os.rename(file_path, optimal_file_path)
+
     def run(self):
         """Executes all the possible experiments from the combination of  given
             learners, pre-processors and post-processors.
-            
+
             No. of experiments = (#learners * #preprocessors * #postprocessors)
         """
         np.random.seed(self.fixed_random_seed)
@@ -363,10 +433,9 @@ class BinaryClassificationExperiment:
         data = self.load_raw_data()
 
         all_train_data, test_and_validation_data = train_test_split(data, test_size=self.test_set_ratio +
-                                                                    self.validation_set_ratio,
+                                                                                    self.validation_set_ratio,
                                                                     random_state=self.fixed_random_seed)
 
-        #Just returns complete data
         train_data = self.train_data_sampler.sample(all_train_data)
 
         second_split_ratio = self.test_set_ratio / (self.test_set_ratio + self.validation_set_ratio)
@@ -374,8 +443,6 @@ class BinaryClassificationExperiment:
         validation_data, test_data = train_test_split(test_and_validation_data, test_size=second_split_ratio,
                                                       random_state=self.fixed_random_seed)
 
-
-        #fit just passes and hadle_missing does drop_na operation
         self.missing_value_handler.fit(train_data)
         filtered_train_data = self.missing_value_handler.handle_missing(train_data)
 
@@ -402,8 +469,11 @@ class BinaryClassificationExperiment:
             features_to_drop=self.attributes_to_drop_names,
             metadata=self.dataset_metadata
         )
+
         for pre_processor in self.pre_processors:
             for learner in self.learners:
                 for post_processor in self.post_processors:
-                    self.run_single_exp(annotated_train_data, validation_data, test_data, scalers, pre_processor, learner, post_processor)
-        self.filter_optimal_results()
+                    self.run_single_exp(annotated_train_data, validation_data, test_data, scalers,
+                                        pre_processor, learner, post_processor)
+        # self.filter_optimal_results()
+        self.filter_optimal_validation_results_on_skyline_input()
