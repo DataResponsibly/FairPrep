@@ -23,11 +23,14 @@ learners = [LogisticRegression()]
 
 processors = [(NoPreProcessing(), NoPostProcessing()), (DIRemover(1.0), NoPostProcessing()), (NoPreProcessing(), RejectOptionPostProcessing())]
 
+# specify the strategy to filter the optimal results on validation set from alll the settings of processors above.
+# E.g. if a list ['accuracy', 'selection_rate', 'false_discovery_rate'] is specified, the optimal result is the setting with highest accuracy, selection rate and false discovery rate. If two settings have the same accuracy, the one with highest selection rate is the optimal one, etc. The input list specifies a skyline order to select the optimal one.
+# E.g. if a dict {'accuracy': 0.5, 'selection_rate': 0.3, 'false_discovery_rate': 0.2} is specified, the optimal result is the setting with highest values from formula accuracy*0.5+selection_rate*0.3+false_discovery_rate*0.2.
+# If more than one settings have the highest value by the above strategies, then all of the settings are returned as optimal.
+filter_res_on_val_by_order = ['accuracy', 'selection_rate', 'false_discovery_rate']
+filter_res_on_val_by_weight_sum = {'accuracy': 0.5, 'selection_rate': 0.3, 'false_discovery_rate': 0.2}
 
-skyline_order = ['accuracy', 'selection_rate', 'false_discovery_rate']
-skyline_formula = {'accuracy': 0.5, 'selection_rate': 0.3, 'false_discovery_rate': 0.2}
-
-def calculate_metrics(seed, learners, pre_processors, post_processors, skyline_strategy):
+def calculate_metrics(seed, learners, pre_processors, post_processors, filter_val_strategy):
     '''
         Experiment function to run the experiments with multiple combinations of learners and processors in the input
     '''
@@ -39,17 +42,19 @@ def calculate_metrics(seed, learners, pre_processors, post_processors, skyline_s
         learners=learners,
         pre_processors=pre_processors,
         post_processors=post_processors,
-        optimal_validation_strategy=skyline_strategy)
+        optimal_validation_strategy=filter_val_strategy)
     exp.run()
     return exp.generate_file_path()
 
-def run_exp(seeds, learners, processors, skyline_strategy):
+def run_exp(seeds, learners, processors, filter_val_strategy):
     '''
         This is the main driver function that calls the calculate_metrics to give metrices on combinations of various learners, pre and post processing techniques.
     '''
     skyline_res_folder = {}
     for seed in seeds:
-        skyline_res_folder[seed] = calculate_metrics(seed, learners, [x[0] for x in processors], [x[1] for x in processors], skyline_strategy)
+        input_preprocessors = [x[0] for x in processors]
+        input_postprocessors = [x[1] for x in processors]
+        skyline_res_folder[seed] = calculate_metrics(seed, learners, input_preprocessors, input_postprocessors, filter_val_strategy)
     return skyline_res_folder
 
 
@@ -60,8 +65,8 @@ def output_scatter_plot(f_name, df, x_col, y_col, hue_col='setting', color_p='Se
     sns.set(style='whitegrid', font_scale=1.5)
     # add jitters for x to account for ties in the values
     data = df.copy()
-    noise_para = 100
-    data[x_col] += np.random.random(data.shape[0]) / noise_para - 1 / noise_para / 2
+    noise_param = 100
+    data[x_col] += np.random.random(data.shape[0]) / noise_param - 1 / noise_param / 2
 
     fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(13, 6))
     sns.scatterplot(x_col, y_col, hue_col, data=data.query("data == 'val'"), ax=ax1, style='optimal', s=100)
@@ -86,17 +91,23 @@ def get_skyline_candidates(seed_path_map, focus_seed):
                       'no_pre_processing': 'NoPre', 'no_post_processing': 'NoPost',
                       'DecisionTree': 'DT', 'LogisticRegression': 'LR'}
     skyline_df = pd.read_csv(seed_path_map[focus_seed] + "skyline_options.csv")
-    # rename the setting of preprocessor (idx 1), learner (idx 5), and postprocessor (idx 6)
-    skyline_df['setting'] = skyline_df['setting'].apply(lambda x: '_'.join([setting_labels[x.split('__')[i].replace('-' + str(focus_seed), '')] for i in range(len(x.split('__'))) if i in [1, 5, 6]]))
+    # only keep the name of preprocessor (idx 1), learner (idx 5), and postprocessor (idx 6) in the settings for visualization purpose
+    skyline_df['setting'] = skyline_df['setting'].apply(lambda x: "__".join([x.split('__')[i] for i in range(len(x.split('__'))) if i in [1, 5, 6]]))
+    # remove the seed name in the setting for visualization purpose
+    skyline_df['setting'] = skyline_df['setting'].apply(lambda x: x.replace('-' + str(focus_seed), ''))
+    # rename (shorten) the settings' names for visualization purpose
+    skyline_df['setting'] = skyline_df['setting'].apply(lambda x: '_'.join([setting_labels[stepi] for stepi in x.split('__')]))
+
+
     # show the candidates using only one fairness intervention method
     return skyline_df[skyline_df['setting'].apply(lambda x: 'NoP' in x)]
 
 # running experiments using above parameters
-skyline_order_results = run_exp(seeds, learners, processors, skyline_order)
+skyline_order_results = run_exp(seeds, learners, processors, filter_res_on_val_by_order)
 print (skyline_order_results)
 print ("\n\n\n")
 
-skyline_formula_results = run_exp(seeds, learners, processors, skyline_formula)
+skyline_formula_results = run_exp(seeds, learners, processors, filter_res_on_val_by_weight_sum)
 print (skyline_formula_results)
 
 
@@ -105,7 +116,7 @@ for focus_seed in seeds:
     print ('---' * 8,'Generate skyline plots for seed ', str(focus_seed), '---' * 8)
     skyline_order_options = get_skyline_candidates(skyline_order_results, focus_seed)
     skyline_formula_options = get_skyline_candidates(skyline_formula_results, focus_seed)
-    for x_col, y_col in itertools.combinations(skyline_order, 2):
+    for x_col, y_col in itertools.combinations(filter_res_on_val_by_order, 2):
         output_scatter_plot("_".join(['examples/skyline_plots/Order', 's' + str(focus_seed), x_col, y_col]), skyline_order_options, x_col, y_col)
         output_scatter_plot("_".join(['examples/skyline_plots/Formula', 's' + str(focus_seed), x_col, y_col]), skyline_formula_options, x_col, y_col)
         print ('Save skyline order plot for ', x_col, ' and ', y_col, ' in ', "_".join(['examples/skyline_plots/Order', 's' + str(focus_seed), x_col, y_col]), '.png\n')
