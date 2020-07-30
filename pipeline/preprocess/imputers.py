@@ -4,65 +4,143 @@
 import numpy as np
 import pandas as pd
 import datawig
-from pipeline.preprocess.preprocessor import Preprocessor
 from sklearn.impute import SimpleImputer
+from pipeline.step import Step
 
-class DropNAImputer(Preprocessor):
-    def __init__(self, df, na_mark=None):
-        """
-        :param df: pandas dataframe, stores the data to fit the imputer.
-        :param na_mark: str, represents the symbol of missing values. Default is None, i.e. NaN represents the missing values.
-        """
-        super().__init__("DropNAImputer", df=df, fit_flag=False, na_mark=na_mark)
+class NoImputer(Step):
+    def __init__(self):
+        self.fitted_step = None
+
+    def fit(self, df):
+        pass
 
     def apply(self, df):
+        return df
+
+    def name(self):
+        return "NoImputer"
+
+    def abbr_name(self):
+        return "NI"
+
+    def step_name(self):
+        return "Imputer"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
+
+class DropNAImputer(Step):
+    def __init__(self, na_mark=None):
         """
-        :param df: pandas dataframe, stores the data to impute.
-        :return: pandas dataframe, stores the data after impute.
+        :param na_mark: str, represents the symbol of missing values. Default is None, i.e. NaN represents the missing values.
         """
+        self.na_mark = na_mark
+
+    def fit(self, df):
+        pass
+
+    def apply(self, df):
         if self.na_mark:
             df = df.replace({self.na_mark:np.nan})
         return df.dropna()
 
-class ModeImputer(Preprocessor):
-    def __init__(self, df, num_atts, cate_atts, na_mark=None):
+    def name(self):
+        return "DropNAImputer"
+
+    def abbr_name(self):
+        return "DN"
+
+    def step_name(self):
+        return "Imputer"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
+
+class ModeImputer(Step):
+    def __init__(self, num_atts, cate_atts, na_mark=None):
         """
-        :param df: pandas dataframe, stores the data to fit the imputer.
         :param num_atts: list of str, each str represents the name of numerical column to be imputed using the mean value.
         :param cate_atts: list of str, each str represents the name of categorical column to be imputed using the most frequent value.
         :param na_mark: str, represents the symbol of missing values. Default is None, i.e. NaN represents the missing values.
         """
-        if len(set(num_atts).intersection(cate_atts)) > 0:
-            print("Some attributes are both in num_atts and cate_atts!")
-            raise ValueError
+        self.num_atts = num_atts
+        self.cate_atts = cate_atts
+        self.na_mark = na_mark
 
-        cur_step = {}
-        if len(cate_atts) > 0:
-            for ci in cate_atts:
-                cur_step[ci] = SimpleImputer(strategy='most_frequent')
-        if len(num_atts) > 0:
-            for ni in num_atts:
-                cur_step[ni] = SimpleImputer(strategy='mean')
+        self.fitted_step = None
 
-        super().__init__("@".join(["ModeImputer"]+num_atts+cate_atts), df, step=cur_step, focus_atts=cate_atts+num_atts, fit_flag=True, na_mark=na_mark)
+    def fit(self, df):
+        fitted_step = {}
+        if len(self.cate_atts) > 0:
+            for ci in self.cate_atts:
+                fitted_step[ci] = SimpleImputer(strategy='most_frequent').fit(np.array(df[ci]).reshape(-1, 1))
+        if len(self.num_atts) > 0:
+            for ni in self.num_atts:
+                fitted_step[ni] = SimpleImputer(strategy='mean').fit(np.array(df[ni]).reshape(-1, 1))
+        self.fitted_step = fitted_step
 
+        return self
 
-class DatawigImputer(Preprocessor):
-    def __init__(self, df, impute_atts, na_mark=None, output_path="datawig/", num_epochs=50):
+    def apply(self, df):
+        if self.na_mark:
+            df = df.replace({self.na_mark:np.nan})
+        after_df = df.copy()
+        for ai in self.num_atts + self.cate_atts:
+            after_df[ai] = self.fitted_step[ai].transform(np.array(after_df[ai]).reshape(-1, 1))
+
+        return after_df
+
+    def name(self):
+        return "SK_ModeImputer"
+
+    def abbr_name(self):
+        return "MI"
+
+    def step_name(self):
+        return "Imputer"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return True
+
+class DatawigImputer(Step):
+    def __init__(self, impute_atts, na_mark=None, output_path="datawig/", num_epochs=50):
         """
-        :param df: pandas dataframe, stores the data to fit the imputer.
         :param impute_atts: list of str, each str represents the name of column to be imputed using datawig model. Column can be categorical or numerical.
         :param na_mark: str, represents the symbol of missing values. Default is None, i.e. NaN represents the missing values.
         :param output_path: str, the path to store the learned datawig model.
         :param num_epochs: integer, the maximum iteration of datawig model.
         """
-        super().__init__("@".join(["DatawigImputer"] + impute_atts), df, focus_atts=impute_atts, fit_flag=False, na_mark=na_mark)
+        self.focus_atts = impute_atts
+        self.na_mark = na_mark
+        self.output_path = output_path
+        self.num_epochs = num_epochs
 
+        self.fitted_step = None
+
+    def fit(self, df):
         learned_imputers = {}
-        for ai in impute_atts:
-            learned_imputers[ai] = datawig.SimpleImputer(input_columns=list(set(df.columns).difference(ai)),
-                                                          output_column=ai, output_path=output_path).fit(train_df=df, num_epochs=num_epochs)
-        self.step = learned_imputers
+        for ai in self.focus_atts:
+            learned_imputers[ai] = datawig.SimpleImputer(input_columns=list(set(df.columns).difference(ai)), output_column=ai, output_path=self.output_path).fit(train_df=df, num_epochs=self.num_epochs)
+        self.fitted_step = learned_imputers
+        return self
 
     def apply(self, df):
         """
@@ -73,16 +151,33 @@ class DatawigImputer(Preprocessor):
             df = df.replace({self.na_mark:np.nan})
         after_df = df.copy()
         for ai in self.focus_atts:
-            after_df[ai] = self.step[ai].predict(df)[ai + '_imputed']
+            after_df[ai] = self.fitted_step[ai].predict(df)[ai + '_imputed']
         return after_df
 
+    def name(self):
+        return "DatawigImputer"
+
+    def abbr_name(self):
+        return "DW"
+
+    def step_name(self):
+        return "Imputer"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return True
+
 if __name__ == '__main__':
-    data = pd.read_csv("../../data/adult_pre_RandomSampler_1000.csv")
-    cur_o = DropNAImputer(data, na_mark="?")
-    # cur_o = ModeImputer(data, ["fnlwgt"], ["workclass"], na_mark="?")
-    # cur_o = DatawigImputer(data, ["workclass"], na_mark="?")
+    data = pd.read_csv("../../data/adult_AIF.csv")
+    # cur_o = DropNAImputer(na_mark="?")
+    cur_o = ModeImputer([],["workclass"], na_mark="?")
+    # cur_o = DatawigImputer(["workclass"], na_mark="?") # TODO: test after fix dependency issue
 
+    cur_o.fit(data)
     after_data = cur_o.apply(data)
-    after_data.to_csv("../../data/adult_"+cur_o.get_name()+".csv", index=False)
-
-    print(cur_o.get_name())
+    after_data.to_csv("../../data/adult_AIF_"+cur_o.name()+".csv", index=False)

@@ -2,68 +2,93 @@
     Classes to filter slice of data.
 """
 import pandas as pd
-from pipeline.preprocess.preprocessor import Preprocessor
+from pipeline.step import Step
 
-# utility functions
-def wrap_filter(att, value):
-    if isinstance(value, str): # string or null
-        if value in ["?", ""]: # for null
-            return '{}!={}'.format(att, att)
-        else:
-            return '{}=="{}"'.format(att, value)
-    else: # numerical value
-        return '{}=={}'.format(att, value)
 
 # TODO: add multiple filter class
-class RowFilter(Preprocessor):
+class RowFilter(Step):
 
-    def __init__(self, df, column, value):
+    def __init__(self, column, value):
         """
-        :param column: str, name of the column name to be filtered.
-        :param value: str, integer, float, the value of the column to be filtered.
+        :param column: str, name of the column name to be focused.
+        :param value: str, integer, float, the value of the column to keep.
         """
-        if column is None or value is None:
-            print("Need to specify column and value to create filter!")
-            raise ValueError
-        if column not in df.columns:
-            print("Need to specify valid column!")
-            raise ValueError
-        if value not in df[column].unique():
-            print("Need to specify valid value!")
-            raise ValueError
+
         self.column = column
         self.value = value
-        super().__init__(step_name="@".join(["RowFilter", column, str(value)]), df=df, focus_atts=[column], fit_flag=False)
+
+    def fit(self, df):
+        pass
+
+    # utility functions to wrap the input filter to a df query
+    def wrap_filter(self):
+        if isinstance(self.value, str):  # string or null
+            if self.value in ["?", ""]:  # for null
+                return '{}!={}'.format(self.column, self.column)
+            else:
+                return '{}=="{}"'.format(self.column, self.value)
+        else:  # numerical value
+            return '{}=={}'.format(self.column, self.value)
 
     def apply(self, df):
-        """
-        :param df: pandas dataframe, stores the data to be filtered.
-        :return: pandas dataframe, stores the data after filter.
-        """
-        return df.query(wrap_filter(self.column, self.value))
+        return df.query(self.wrap_filter())
 
-class RemoveColumnFilter(Preprocessor):
-    def __init__(self, df, exclude_cols):
-        """
-        :param exclude_cols: list of string, each string represents the name of the column to be excluded.
-        """
+    def name(self):
+        return "RowFilter"
 
-        super().__init__(step_name="RemoveColumnFilter", df=df, focus_atts=exclude_cols, fit_flag=False)
+    def abbr_name(self):
+        return "RF"
+
+    def step_name(self):
+        return "Filter"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
+
+class ColumnFilter(Step):
+    def __init__(self, remove_cols):
+        """
+        :param exclude_cols: list of string, each string represents the name of the column to be filtered out.
+        """
+        self.remove_cols = remove_cols
+
+    def fit(self, df):
+        pass
 
     def apply(self, df):
-        """
-        :param df: pandas dataframe, stores the data to be filtered.
-        :return: pandas dataframe, stores the data after filter.
-        """
-        return df.drop(columns=self.focus_atts)
+        return df.drop(columns=self.remove_cols)
+
+    def name(self):
+        return "ColumnFilter"
+
+    def abbr_name(self):
+        return "CF"
+
+    def step_name(self):
+        return "Filter"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
 
 if __name__ == '__main__':
 
-    data = pd.read_csv("../../data/adult_pre_reweigh.csv")
-    # cur_o = RowFilter(data, "sex", 0)
-    cur_o = RemoveColumnFilter(data, ["sex","race"])
+    data = pd.read_csv("../../data/german_AIF.csv")
+    cur_o = RowFilter("sex", "female")
+    # cur_o = ColumnFilter(["sex", "age"])
 
+    cur_o.fit(data)
     after_data = cur_o.apply(data)
-    after_data.to_csv("../../data/adult_" + cur_o.get_name() + ".csv", index=False)
+    after_data.to_csv("../../data/german_AIF_" + cur_o.name() + ".csv", index=False)
 
-    print(cur_o.get_name())

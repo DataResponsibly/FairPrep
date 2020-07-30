@@ -2,46 +2,113 @@
     Classes to scale data.
 """
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from pipeline.preprocess.preprocessor import Preprocessor
+from pipeline.step import Step
 
-class SK_StandardScaler(Preprocessor):
+class SK_StandardScaler(Step):
 
-    def __init__(self, df, num_atts, copy=True, with_mean=True, with_std=True):
+    def __init__(self, num_atts, copy=True, with_mean=True, with_std=True):
         """
-        :param df: pandas dataframe, stores the data to fit the scaler.
         :param num_atts: list of str, each str represents the name of a numerical attribute in above data.
         :param copy: same parameter with sklearn StandardScaler
         :param with_mean: same parameter with sklearn StandardScaler
         :param with_std: same parameter with sklearn StandardScaler
         """
-        cur_step = {}
-        for ai in num_atts:
-            cur_step[ai] = StandardScaler(copy=copy, with_mean=with_mean, with_std=with_std)
+        self.focus_atts = num_atts
+        self.copy = copy
+        self.with_mean = with_mean
+        self.with_std = with_std
 
-        super().__init__("@".join(["StandardScaler"]+num_atts), df, step=cur_step, focus_atts=num_atts, fit_flag=True)
+        self.fitted_step = None
+
+    def fit(self, df):
+        fitted_step = {}
+        for ai in self.focus_atts:
+            fitted_step[ai] = StandardScaler(copy=self.copy, with_mean=self.with_mean, with_std=self.with_std).fit(np.array(df[ai]).reshape(-1, 1))
+
+        self.fitted_step = fitted_step
+
+        return self
+
+    def apply(self, df):
+        after_df = df.copy()
+        for ai in self.focus_atts:
+            after_df[ai] = self.fitted_step[ai].transform(np.array(after_df[ai]).reshape(-1, 1))
+
+        return after_df
+
+    def name(self):
+        return "StandardScaler"
+
+    def abbr_name(self):
+        return "SS"
+
+    def step_name(self):
+        return "Scaler"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return True
 
 
-class SK_MinMaxScaler(Preprocessor):
-    def __init__(self, df, num_atts, feature_range=(0, 1), copy=True):
+class SK_MinMaxScaler(Step):
+    def __init__(self, num_atts, feature_range=(0, 1), copy=True):
         """
-        :param df: pandas dataframe, stores the data to fit the scaler.
         :param num_atts: list of str, each str represents the name of a numerical attribute in above data.
         :param feature_range: same parameter with sklearn MinMaxScaler
         :param copy: same parameter with sklearn MinMaxScaler
         """
-        cur_step = {}
-        for ai in num_atts:
-            cur_step[ai] = MinMaxScaler(feature_range=feature_range, copy=copy)
-        super().__init__("@".join(["MinMaxScaler"]+num_atts), df, step=cur_step, focus_atts=num_atts, fit_flag=True)
+        self.focus_atts = num_atts
+        self.feature_range = feature_range
+        self.copy = copy
 
+        self.fitted_step = None
+
+    def fit(self, df):
+        fitted_step = {}
+        for ai in self.focus_atts:
+            fitted_step[ai] = MinMaxScaler(feature_range=self.feature_range, copy=self.copy).fit(np.array(df[ai]).reshape(-1, 1))
+
+        self.fitted_step = fitted_step
+
+        return self
+
+    def apply(self, df):
+        after_df = df.copy()
+        for ai in self.focus_atts:
+            after_df[ai] = self.fitted_step[ai].transform(np.array(after_df[ai]).reshape(-1, 1))
+
+        return after_df
+
+    def name(self):
+        return "MinMaxScaler"
+
+    def abbr_name(self):
+        return "MS"
+
+    def step_name(self):
+        return "Scaler"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return True
 
 if __name__ == '__main__':
-    data = pd.read_csv("../../data/adult_pre_RandomSampler_1000.csv")
-    cur_o = SK_StandardScaler(data, ["fnlwgt", "age"])
-    # cur_o = SK_MinMaxScaler(data, ["fnlwgt", "age"])
+    data = pd.read_csv("../../data/german_AIF.csv")
+    # cur_o = SK_StandardScaler(["month", "credit_amount"])
+    cur_o = SK_MinMaxScaler(["month", "credit_amount"])
 
+    cur_o.fit(data)
     after_data = cur_o.apply(data)
-    after_data.to_csv("../../data/adult_"+cur_o.get_name()+".csv", index=False)
-
-    print(cur_o.get_name())
+    after_data.to_csv("../../data/german_AIF_"+cur_o.name()+".csv", index=False)

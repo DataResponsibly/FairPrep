@@ -4,58 +4,92 @@
 
 import numpy as np
 import pandas as pd
-from pipeline.preprocess.preprocessor import Preprocessor
+from pipeline.step import Step
 
-class RandomSampler(Preprocessor):
-    def __init__(self, df, sample_n, random_state=0):
-        """
-        :param sample_n: integer, the size of the sampled subset of data
-        """
-        if not sample_n:
-            print("Need to specify a size greater than 0!")
-            raise ValueError
-        self.sample_n = sample_n
-        self.random_state = random_state
-        super().__init__("RandomSampler@"+str(sample_n), df=df, fit_flag=False)
+
+class NoSampler(Step):
+    def __init__(self):
+        self.fitted_step = None
+
+    def fit(self, df):
+        pass
 
     def apply(self, df):
-        """
-        :param df: pandas dataframe, stores the data to be sampled.
-        :return: pandas dataframe, stores the data after sample.
-        """
-        return df.sample(n=self.sample_n, random_state=self.random_state)
+        return df
 
-class BalancePopulationSampler(Preprocessor):
-    def __init__(self, df, sample_n, balance_col, random_state=0):
+    def name(self):
+        return "NoSampler"
+
+    def abbr_name(self):
+        return "NS"
+
+    def step_name(self):
+        return "Sampler"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
+
+class RandomSampler(Step):
+    def __init__(self, sample_n, seed):
+        """
+        :param sample_n: integer, the size of the sampled subset of data
+        :param seed: integer, the seed for random process.
+        """
+        self.sample_n = sample_n
+        self.seed = seed
+
+    def fit(self, df):
+        pass
+
+    def apply(self, df):
+        return df.sample(n=self.sample_n, random_state=self.seed)
+
+    def name(self):
+        return "RandomSampler"
+
+    def abbr_name(self):
+        return "RS"
+
+    def step_name(self):
+        return "Sampler"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
+
+
+class BalancePopulationSampler(Step):
+    def __init__(self, sample_n, balance_col, seed):
         """
         :param sample_n: integer, the size of the sampled subset of data
         :param balance_col: str, the name of a categorical column that the population of groups within this column are balanced in the sampled subset.
-        :param random_state: integer, the seed for random process, same as random_state in pandas.DataFrame.sample.
+        :param seed: integer, the seed for random process.
 
         """
-        if not sample_n:
-            print("Need to specify a size greater than 0!")
-            raise ValueError
-        if not balance_col:
-            print("Need to specify the name of a column to perform balance sampling within this column!")
-            raise ValueError
-        if balance_col not in df.columns:
-            print("Need to specify a valid column to perform balance sampling within this column!")
-            raise ValueError
+
         self.sample_n = sample_n
         self.balance_col = balance_col
-        self.random_state = random_state
-        super().__init__("@".join(["BalanceSampler", balance_col, str(sample_n)]), df=df, fit_flag=False)
+        self.seed = seed
+
+    def fit(self, df):
+        pass
 
     def apply(self, df):
-        """
-        :param df: pandas dataframe, stores the data to be sampled.
-        :return: pandas dataframe, stores the data after sample.
-        """
-        # TODO: update to minimum sample set
+        # TODO: update to minimum sample set and remove print statement
         balance_groups = list(df[self.balance_col].unique())
         n_group = int(np.ceil(self.sample_n/len(balance_groups)))
-        # print(n_group)
+
         sampled_df = {}
         small_groups = []
         for gi in balance_groups:
@@ -64,7 +98,7 @@ class BalancePopulationSampler(Preprocessor):
                 sampled_df[gi] = gi_data
                 small_groups.append(gi)
             else:
-                sampled_df[gi] = df[df[self.balance_col]==gi].sample(n=n_group, random_state=self.random_state)
+                sampled_df[gi] = df[df[self.balance_col]==gi].sample(n=n_group, random_state=self.seed)
 
         after_df = pd.DataFrame()
         if not self.sample_n % len(balance_groups): # for even groups
@@ -86,11 +120,31 @@ class BalancePopulationSampler(Preprocessor):
         print(after_df.groupby(self.balance_col).count())
         return after_df
 
-if __name__ == '__main__':
-    # cur_o = BalancePopulationSampler(1000, "marital-status")
-    data = pd.read_csv("../../data/adult.csv")
-    cur_o = RandomSampler(data, 1000)
+    def name(self):
+        return "BalanceSampler"
 
+    def abbr_name(self):
+        return "BS"
+
+    def step_name(self):
+        return "Sampler"
+
+    def input_encoded_data(self):
+        return False
+
+    def output_encoded_data(self):
+        return False
+
+    def fit_only_on_train(self):
+        return False
+
+if __name__ == '__main__':
+
+    data = pd.read_csv("../../data/german_AIF.csv")
+    # cur_o = RandomSampler(200, 0)
+
+    cur_o = BalancePopulationSampler(200, "sex", 0)
+
+    cur_o.fit(data)
     after_data = cur_o.apply(data)
-    after_data.to_csv("../../data/adult_" + cur_o.get_name() + ".csv", index=False)
-    print(cur_o.get_name())
+    after_data.to_csv("../../data/german_AIF_" + cur_o.name() + ".csv", index=False)
