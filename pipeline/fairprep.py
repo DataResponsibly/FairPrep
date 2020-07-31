@@ -181,20 +181,17 @@ class FairPipeline():
 
         return self
 
-    def iter_steps(self, steps, input_df):
+    def iter_steps(self, steps):
+        # TODO: optimize with the input data.
         """
         Generator function to iterate steps.
         :param steps: list of objects that represent the steps user want to perform on the input data.
                       Supported steps are listed in STEPS.md.
         :return:  the pandas dataframes that are returned by applying a step on the input data.
         """
-        for idx, stepi in enumerate(islice(steps, 0, len(steps))):
-            # if the current step is the encoder, feed inputdata's metadata so that the encoded data can have the domain of the raw dataset
-            stepi.fit(input_df)
-            return_df = stepi.apply(input_df)
-            if len(return_df) == 2: # special heck for the step that return weights
-                return_df = return_df[0]
-            yield idx, stepi.fitted_step, return_df
+        # islice(steps, 0, len(steps))
+        for idx, stepi in enumerate(steps):
+            yield idx, stepi
 
     def validate_input_steps(self, steps):
 
@@ -241,7 +238,8 @@ class FairPipeline():
         print(PRINT_SPLIT)
 
         # for step_idx, train_fitted_step, train_df in self.iter_steps(steps, train_df):
-        for step_idx, stepi in enumerate(steps):
+        # for step_idx, stepi in enumerate(steps):
+        for step_idx, stepi in self.iter_steps(steps):
             if step_idx == 0:
                 continue
 
