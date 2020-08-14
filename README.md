@@ -8,7 +8,7 @@ FairPrep is a design and evaluation framework for fairness-enhancing interventio
 
 ### Download and Initialize the environment for FairPrep
 
-Step 1 Download FairPrep from [GitHub repository](https://github.com/DataResponsibly/FairPrep/tree/release-PyPI).
+Step 1 Download FairPrep from [release-PyPI branch of FairPrep GitHub repository](https://github.com/DataResponsibly/FairPrep/tree/release-PyPI).
 
 Step 2 Unzip the downloaded source file and initiate the python environment.
 
