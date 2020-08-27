@@ -3,4 +3,4 @@ FairPrep is a design and evaluation framework for fairness-enhancing interventio
 
 ## Status
 
-FairPrep is under active development, and is planning a first publicly available release soon.
+FairPrep is under active development, and is planning a first publicly available release with installation instructions and examples soon.
