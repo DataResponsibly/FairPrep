@@ -27,16 +27,13 @@ class AdultDatasetWhiteMaleExperiment(BinaryClassificationExperiment):
             'label_maps': [{1.0: '>50K', 0.0: '<=50K'}],
             'protected_attribute_maps': [{1.0: 'White', 0.0: 'Non-white'}, {1.0: 'Male', 0.0: 'Female'}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'adultwhitemale', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
+
 
     def load_raw_data(self):
         return pd.read_csv('datasets/raw/adult.csv', na_values='?', sep=',')
@@ -66,16 +63,12 @@ class AdultDatasetMaleExperiment(BinaryClassificationExperiment):
             'label_maps': [{1.0: '>50K', 0.0: '<=50K'}],
             'protected_attribute_maps': [{1.0: 'Male', 0.0: 'Female'}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'adultmale', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
 
     def load_raw_data(self):
         return pd.read_csv('datasets/raw/adult.csv', na_values='?', sep=',')
@@ -105,16 +98,12 @@ class AdultDatasetWhiteExperiment(BinaryClassificationExperiment):
             'label_maps': [{1.0: '>50K', 0.0: '<=50K'}],
             'protected_attribute_maps': [{1.0: 'White', 0.0: 'Non-white'}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'adultwhite', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
 
     def load_raw_data(self):
         return pd.read_csv('datasets/raw/adult.csv', na_values='?', sep=',')
@@ -144,16 +133,13 @@ class PropublicaDatasetWhiteExperiment(BinaryClassificationExperiment):
             'label_maps': [{1.0: 1, 0.0: 0}],
             'protected_attribute_maps': [{1.0: 'Caucasian', 0.0: 'Non-white'}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'propublicawhite', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
+
 
     def load_raw_data(self):
         """The custom pre-processing function is adapted from
@@ -202,16 +188,12 @@ class GermanCreditDatasetSexExperiment(BinaryClassificationExperiment):
             'label_maps': [{1.0: 1, 0.0: 0}],
             'protected_attribute_maps': [{1.0: 'male', 0.0: 'female'}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'germancreditsex', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
 
     def load_raw_data(self):
         df = pd.read_csv('datasets/raw/german.csv', na_values='?', sep=',')
@@ -294,16 +276,12 @@ class RicciRaceExperiment(BinaryClassificationExperiment):
             'label_maps': [{1.0: 1, 0.0: 0}],
             'protected_attribute_maps': [{1.0: 'W', 0.0: 'NW'}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'riccirace', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
 
     def load_raw_data(self):
         df = pd.read_csv('datasets/raw/ricci.txt', na_values='?', sep=',')
@@ -351,16 +329,12 @@ class GiveMeSomeCreditExperiment(BinaryClassificationExperiment):
         dataset_metadata = {
             'label_maps': [{1.0: 1, 0.0: 0}]
         }
-        if optimal_validation_strategy:
-            super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
+        super().__init__(fixed_random_seed, test_set_ratio, validation_set_ratio, label_name, positive_label,
                              numeric_attribute_names, categorical_attribute_names, attributes_to_drop_names,
                              train_data_sampler, missing_value_handler, numeric_attribute_scaler, learners,
                              pre_processors,
                              post_processors, protected_attribute_names, privileged_classes, privileged_groups,
                              unprivileged_groups, dataset_metadata, 'givecredit', optimal_validation_strategy)
-        else:
-            print("Need to specify the strategy that is used to select the optimal results!")
-            exit()
 
     def load_raw_data(self):
         df = pd.read_csv('datasets/raw/givemesomecredit.csv', na_values='?', sep=',',index_col=False)

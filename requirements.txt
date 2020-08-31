@@ -7,3 +7,6 @@ numba==0.49.0
 BlackBoxAuditing==0.1.54
 aif360==0.2.3
 datawig==0.1.12
+matplotlib==3.0.3
+seaborn
+jupyter

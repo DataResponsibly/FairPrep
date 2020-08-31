@@ -42,7 +42,8 @@ def calculate_metrics(seed, learner, missing_value_imputer,pre_processor,post_pr
         numeric_attribute_scaler=NamedStandardScaler(),
         learners=[learner],
         pre_processors=[pre_processor],
-        post_processors=[post_processor])
+        post_processors=[post_processor],
+        optimal_validation_strategy=[])
     exp.run()
 
 def run_exp(seeds, learners, processors):
@@ -77,9 +78,9 @@ def plotter(x, y, x_ticks, x_label, main_title):
     axs = axs.flatten()
     for i in range(0, len(y), 3):
         loc = i//3
-        axs[loc].scatter(x[i], y[i], c='b', marker='o')
-        axs[loc].scatter(x[i+1], y[i+1], c='r', marker='o')
-        axs[loc].scatter(x[i+2], y[i+2], c='g', marker='o')
+        axs[loc].scatter([float(valuei) for valuei in x[i]], [float(valuei) for valuei in y[i]], c='b', marker='o')
+        axs[loc].scatter([float(valuei) for valuei in x[i + 1]], [float(valuei) for valuei in y[i + 1]], c='r', marker='o')
+        axs[loc].scatter([float(valuei) for valuei in x[i + 2]], [float(valuei) for valuei in y[i + 2]], c='g', marker='o')
         axs[loc].set_xticks(x_ticks)
         axs[loc].set_yticks(np.arange(0.5, 1, 0.1))
         axs[loc].set_title(title_list[i//3],fontsize=8)

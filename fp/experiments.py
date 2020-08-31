@@ -475,5 +475,8 @@ class BinaryClassificationExperiment:
                 for post_processor in self.post_processors:
                     self.run_single_exp(annotated_train_data, validation_data, test_data, scalers,
                                         pre_processor, learner, post_processor)
-        # self.filter_optimal_results()
-        self.filter_optimal_validation_results_on_skyline_input()
+
+        if self.optimal_validation_strategy: # if user specify a non-empty strategy to be used in the skyline selection of multiple fairness interventions
+            self.filter_optimal_validation_results_on_skyline_input()
+        else:
+            self.filter_optimal_results()
